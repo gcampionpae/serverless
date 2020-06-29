@@ -53,6 +53,7 @@ layout: Doc
   - [Resource Policy](#resource-policy)
   - [Compression](#compression)
   - [Binary Media Types](#binary-media-types)
+  - [Detailed CloudWatch Metrics](#detailed-cloudwatch-metrics)
   - [AWS X-Ray Tracing](#aws-x-ray-tracing)
   - [Tags / Stack Tags](#tags--stack-tags)
   - [Logs](#logs)
@@ -545,6 +546,32 @@ functions:
               - nickname
 ```
 
+If you are creating the Cognito User Pool in the `resources` section of the same template, you can refer to the ARN using the `Fn::GetAtt` attribute from CloudFormation. To do so, you _must_ give your authorizer a name and specify a type of `COGNITO_USER_POOLS`:
+
+```yml
+functions:
+  create:
+    handler: posts.create
+    events:
+      - http:
+          path: posts/create
+          method: post
+          integration: lambda
+          authorizer:
+            name: MyAuthorizer
+            type: COGNITO_USER_POOLS
+            arn:
+              Fn::GetAtt:
+                - CognitoUserPool
+                - Arn
+---
+resources:
+  Resources:
+    CognitoUserPool:
+      Type: 'AWS::Cognito::UserPool'
+      Properties: ...
+```
+
 ### HTTP Endpoints with `operationId`
 
 Include `operationId` when you want to provide a name for the method endpoint. This will set `OperationName` inside `AWS::ApiGateway::Method` accordingly. One common use case for this is customizing method names in some code generators (e.g., swagger).
@@ -606,6 +633,7 @@ provider:
       value: myThirdKeyValue
     - value: myFourthKeyValue # let cloudformation name the key (recommended when setting api key value)
       description: Api key description # Optional
+      customerId: A string that will be set as the customerID for the key # Optional
   usagePlan:
     quota:
       limit: 5000
@@ -1567,7 +1595,7 @@ provider:
 
 In your Lambda function you need to ensure that the correct `content-type` header is set. Furthermore you might want to return the response body in base64 format.
 
-To convert the request or response payload, you can set the [contentHandling](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-payload-encodings-workflow.html) property.
+To convert the request or response payload, you can set the [contentHandling](https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-payload-encodings-workflow.html) property (if set, the response contentHandling property will be passed to integration responses with 2XXs method response statuses).
 
 ```yml
 functions:
@@ -1581,6 +1609,16 @@ functions:
             contentHandling: CONVERT_TO_TEXT
           response:
             contentHandling: CONVERT_TO_TEXT
+```
+
+## Detailed CloudWatch Metrics
+
+Use the following configuration to enable detailed CloudWatch Metrics:
+
+```yml
+provider:
+  apiGateway:
+    metrics: true
 ```
 
 ## AWS X-Ray Tracing
@@ -1678,3 +1716,37 @@ provider:
 ```
 
 Valid values are INFO, ERROR.
+
+If you want to disable access logging completly you can do with the following:
+
+```yml
+# serverless.yml
+provider:
+  name: aws
+  logs:
+    restApi:
+      accessLogging: true
+```
+
+By default, the full requests and responses data will be logged. If you want to disable like so:
+
+```yml
+# serverless.yml
+provider:
+  name: aws
+  logs:
+    restApi:
+      fullExecutionData: false
+```
+
+Websockets have the same configuration options as the the REST API. Example:
+
+```yml
+# serverless.yml
+provider:
+  name: aws
+  logs:
+    websoocket:
+      level: INFO
+      fullExecutionData: false
+```
